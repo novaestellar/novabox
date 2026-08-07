@@ -54,7 +54,7 @@ class Config:
     """Static run configuration. Override via CLI flags when needed."""
 
     blackbox_url: str = "https://app.blackbox.ai"
-    tempmail_domain: str = "catchmail.io"
+    tempmail_domain: str = "random"
     max_workers: int = 3
     verify_poll_timeout: int = 60
     verify_poll_interval: int = 3
