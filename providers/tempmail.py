@@ -39,7 +39,7 @@ def generate_email(domain: str = "random") -> str:
     last = random.choice(last_names)
     number = random.randint(10, 9999)
     
-    return f"{first}.{last}{number}@{domain}"
+    return f"{first}{last}{number}@{domain}"
 
 
 async def fetch_messages(email: str, *, timeout: int = 30) -> list[dict[str, object]]:
