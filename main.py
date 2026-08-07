@@ -154,7 +154,8 @@ def draw_dashboard():
     console.print("  4  EXPORT        Export keys to file (TXT/JSON/CSV)")
     console.print("  5  INJECT DB     Push keys into 9router database")
     console.print("  6  STATUS        Show detailed registration history")
-    console.print("  7  QUIT          Exit application")
+    console.print("  7  VALIDATE KEYS Test all keys and clean dead ones")
+    console.print("  8  QUIT          Exit application")
     console.print("  " + "-" * 56)
 
 # ─── Main Menu ────────────────────────────────────────────────────────
@@ -163,7 +164,7 @@ def main_menu():
     while True:
         draw_dashboard()
         try:
-            raw = input("\n  Select [1-7]: ").strip()
+            raw = input("\n  Select [1-8]: ").strip()
         except (EOFError, KeyboardInterrupt):
             return "quit"
         if raw in ("1",): return "reg"
@@ -172,7 +173,8 @@ def main_menu():
         elif raw in ("4",): return "export"
         elif raw in ("5",): return "inject"
         elif raw in ("6",): return "status"
-        elif raw in ("7", "q", "x"): return "quit"
+        elif raw in ("7",): return "validate"
+        elif raw in ("8", "q", "x"): return "quit"
 
 # ─── Register ─────────────────────────────────────────────────────────
 
@@ -566,6 +568,83 @@ def menu_status():
 
     wait_key()
 
+# ─── Validate Keys ──────────────────────────────────────────────────────
+
+def menu_validate():
+    clear()
+    console.print(Panel("VALIDATE & CLEAN KEYS", box=box.DOUBLE, border_style="red"))
+    
+    p = Path("output/keys.txt")
+    if not p.exists():
+        console.print("  No keys found to validate.")
+        wait_key()
+        return
+
+    lines = p.read_text(encoding="utf-8").splitlines()
+    records = []
+    for line in lines:
+        if line.strip():
+            parts = line.split(":")
+            if len(parts) >= 3:
+                records.append(line)
+                
+    if not records:
+        console.print("  No valid keys found in keys.txt.")
+        wait_key()
+        return
+
+    console.print(f"  Found {len(records)} keys. Starting validation...\n")
+    
+    alive = []
+    dead = []
+    
+    async def _validate_all():
+        sem = asyncio.Semaphore(10)
+        from models import test_model
+        
+        results_cache = {}
+        next_to_print = [1]
+        
+        async def _test_key(line, i):
+            parts = line.split(":")
+            email, key = parts[0], parts[2].strip()
+            
+            async with sem:
+                res = await test_model(key, "blackboxai/blackbox-pro", timeout=15)
+                
+                if res.ok:
+                    alive.append(line)
+                    status_str = "[green][OK][/green]"
+                else:
+                    dead.append(line)
+                    status_str = f"[red][DEAD][/red] {res.detail[:30]}"
+                    
+                results_cache[i] = f"  [{i:3d}/{len(records)}] {email[:25]:<25} {status_str}"
+                
+                # Print strictly in original order
+                while next_to_print[0] in results_cache:
+                    console.print(results_cache[next_to_print[0]])
+                    del results_cache[next_to_print[0]]
+                    next_to_print[0] += 1
+        
+        tasks = [asyncio.create_task(_test_key(line, i)) for i, line in enumerate(records, 1)]
+        await asyncio.gather(*tasks)
+        
+    asyncio.run(_validate_all())
+    
+    console.print("\n" + "=" * 56)
+    console.print(f"  RESULTS: {len(alive)} ALIVE / {len(dead)} DEAD")
+    console.print("=" * 56 + "\n")
+    
+    if dead:
+        console.print(f"  Removing {len(dead)} dead keys from output/keys.txt...")
+        p.write_text("\n".join(alive) + "\n", encoding="utf-8")
+        console.print("  Done!")
+    else:
+        console.print("  All keys are working perfectly!")
+        
+    wait_key()
+
 # ─── Main ─────────────────────────────────────────────────────────────
 
 def main():
@@ -582,6 +661,7 @@ def main():
             elif choice == "export": menu_export()
             elif choice == "inject": menu_inject()
             elif choice == "status": menu_status()
+            elif choice == "validate": menu_validate()
     except KeyboardInterrupt:
         clear()
         console.print("\n  Goodbye!\n")
