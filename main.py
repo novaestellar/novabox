@@ -180,7 +180,7 @@ def menu_register():
     count = 10
     workers = 3
     headless = True
-    domain = "catchmail.io"
+    domain = "random"
     state = load_state("output")
     done = len(done_emails(state))
 
@@ -209,7 +209,7 @@ def menu_register():
         actions.add_row("3", "CHANGE COUNT", f"Number of accounts (current: {count})")
         actions.add_row("4", "CHANGE WORKERS", f"Concurrent browsers (current: {workers})")
         actions.add_row("5", "TOGGLE HEADLESS", f"Browser visible (current: {'OFF' if headless else 'ON'})")
-        actions.add_row("6", "CHANGE DOMAIN", f"Email domain (current: {domain})")
+        actions.add_row("6", "CHANGE DOMAIN", f"Email domain (current: {domain} | 'random')")
         actions.add_row("7", "BACK", "Return to main menu")
         console.print(Panel(actions, title="ACTIONS", border_style="green"))
 
@@ -286,22 +286,25 @@ async def _drive(cfg, count, dashboard, state):
             result = AccountResult(email=email, password=password)
             start = time.monotonic()
             client = None
+            dashboard.update_worker(wid, status="registering", email=email, started_at=start, error="", done=False, step="starting...")
             try:
-                dashboard.update_worker(wid, status="registering", email=email)
                 client = BlackboxClient(cfg)
                 await client.start()
-                api_key = await client.register_and_create_key(email, password)
+                
+                def step_cb(step_name):
+                    dashboard.update_worker(wid, step=step_name)
+                    
+                api_key = await client.register_and_create_key(email, password, on_step=step_cb)
                 result.api_key = api_key
                 result.success = True
-                dashboard.update_worker(wid, status="done", email=email)
             except Exception as e:
                 result.error = str(e)[:200]
-                dashboard.update_worker(wid, status="failed", error=result.error)
             finally:
                 if client:
                     try: await client.stop()
                     except: pass
                 result.elapsed = time.monotonic() - start
+                dashboard.finish_worker(wid, success=result.success, error=result.error)
                 record = {"email": result.email, "password": result.password,
                          "api_key": result.api_key, "success": result.success,
                          "error": result.error, "elapsed": round(result.elapsed, 2)}
