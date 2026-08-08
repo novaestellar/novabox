@@ -28,6 +28,7 @@ class WorkerState:
 
     worker_id: int
     status: str = "idle"
+    step: str = ""
     email: str = ""
     error: str = ""
     started_at: float = 0.0
@@ -144,6 +145,7 @@ class FarmDashboard:
         table = Table(title="Workers", expand=True, header_style="bold magenta")
         table.add_column("ID", width=4, justify="center")
         table.add_column("Status", width=15, justify="center")
+        table.add_column("Step", width=20, style="cyan")
         table.add_column("Email", max_width=38)
         table.add_column("Elapsed", width=8, justify="right")
         table.add_column("Error", max_width=42, style="red")
@@ -151,6 +153,7 @@ class FarmDashboard:
             table.add_row(
                 str(w.worker_id),
                 f"{w.icon} {w.status}",
+                w.step[:20],
                 w.email or "-",
                 w.elapsed,
                 w.error[:42] if w.error else "",

@@ -94,7 +94,7 @@ class BlackboxClient:
     # Full flow
     # ------------------------------------------------------------------
 
-    async def register_and_create_key(self, email: str, password: str) -> str:
+    async def register_and_create_key(self, email: str, password: str, on_step=None) -> str:
         """Run the entire verified flow and return the sk-... API key.
 
         Steps:
@@ -107,10 +107,19 @@ class BlackboxClient:
         page = self.page
         page.set_default_timeout(self._cfg.request_timeout * 1000)
 
+        if on_step: on_step("signing up...")
         await self.signup(email, password)
+        
+        if on_step: on_step("waiting for otp...")
         code = await tempmail.wait_for_otp(email, self._cfg)
+        
+        if on_step: on_step("verifying otp...")
         await self.verify_otp(code)
+        
+        if on_step: on_step("creating api key...")
         api_key = await self.create_api_key()
+        
+        if on_step: on_step("done")
         return api_key
 
     # ------------------------------------------------------------------

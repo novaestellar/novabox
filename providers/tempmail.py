@@ -5,7 +5,7 @@ No API key required — just pick a random address and poll for messages.
 from __future__ import annotations
 
 import re
-import secrets
+import random
 import time
 
 import httpx
@@ -19,10 +19,27 @@ class TempMailError(Exception):
     """Raised when no OTP arrives in time or the mailbox API fails."""
 
 
-def generate_email(domain: str = "catchmail.io") -> str:
-    """Generate a random disposable address, e.g. a1b2c3d4e5f6@catchmail.io."""
-    random_part = secrets.token_hex(6)
-    return f"{random_part}@{domain}"
+def generate_email(domain: str = "random") -> str:
+    """Generate a random disposable address with realistic names."""
+    if domain == "random":
+        domain = random.choice(["catchmail.io", "mailistry.com", "zeppost.com"])
+        
+    first_names = [
+        "james", "mary", "john", "patricia", "robert", "jennifer", "michael", "linda", 
+        "william", "elizabeth", "david", "barbara", "richard", "susan", "joseph", "jessica", 
+        "thomas", "sarah", "charles", "karen", "christopher", "nancy", "daniel", "lisa"
+    ]
+    last_names = [
+        "smith", "johnson", "williams", "brown", "jones", "garcia", "miller", "davis", 
+        "rodriguez", "martinez", "hernandez", "lopez", "gonzalez", "wilson", "anderson", 
+        "thomas", "taylor", "moore", "jackson", "martin", "lee", "perez", "thompson", "white"
+    ]
+    
+    first = random.choice(first_names)
+    last = random.choice(last_names)
+    number = random.randint(10, 9999)
+    
+    return f"{first}{last}{number}@{domain}"
 
 
 async def fetch_messages(email: str, *, timeout: int = 30) -> list[dict[str, object]]:
