@@ -68,6 +68,11 @@ class BlackboxClient:
         self._context = await self._browser.new_context()
         self._page = await self._context.new_page()
 
+        # Block images, fonts, media to save RAM and speed up
+        await self._page.route("**/*", lambda route: (
+            route.abort() if route.request.resource_type in ("image", "media", "font") else route.continue_()
+        ))
+
     async def stop(self) -> None:
         try:
             if self._browser is not None:
